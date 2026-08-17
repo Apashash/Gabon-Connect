@@ -67,6 +67,11 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Banner Slider — juste après le header */}
+      <section className="w-full">
+        <BannerSlider />
+      </section>
+
       {/* Hero Section */}
       <section className="pt-16 pb-12 md:pt-24 md:pb-20 px-4 text-center">
         <div className="container mx-auto max-w-3xl">
@@ -78,11 +83,6 @@ export default function Home() {
             Achetez du crédit data pour n&apos;importe quel numéro Airtel ou Moov au Gabon. Payez instantanément par Mobile Money.
           </p>
         </div>
-      </section>
-
-      {/* Banner Slider */}
-      <section className="w-full">
-        <BannerSlider />
       </section>
 
       {/* Forfaits Grid */}
