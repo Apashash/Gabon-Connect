@@ -1,0 +1,258 @@
+import { Router } from "express";
+import { db } from "@workspace/db";
+import { commandesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+import { InitierPaiementBody, ConfirmerOtpBody } from "@workspace/api-zod";
+import { FORFAITS } from "./forfaits";
+import { randomUUID } from "crypto";
+
+const router = Router();
+
+const ASHTECH_API_KEY = process.env.ASHTECH_API_KEY;
+const ASHTECH_BASE_URL = "https://ashtechpay.top";
+
+// Initier un paiement Mobile Money
+router.post("/paiement/initier", async (req, res) => {
+  const parsed = InitierPaiementBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ erreur: "bad_request", message: "Données invalides", reference: null, ussdCode: null });
+    return;
+  }
+
+  const { forfaitId, beneficiairePhone, paymentOperator, paymentPhone } = parsed.data;
+
+  // Find the forfait
+  const forfait = FORFAITS.find((f) => f.id === forfaitId);
+  if (!forfait) {
+    res.status(400).json({ erreur: "bad_request", message: "Forfait introuvable", reference: null, ussdCode: null });
+    return;
+  }
+
+  const reference = `FG-${randomUUID().slice(0, 8).toUpperCase()}`;
+
+  // Create commande in DB
+  const [commande] = await db
+    .insert(commandesTable)
+    .values({
+      forfaitId,
+      operateurForfait: forfait.operateur,
+      beneficiairePhone,
+      paymentOperator,
+      paymentPhone,
+      reference,
+      statut: "pending",
+      montant: forfait.prix,
+    })
+    .returning();
+
+  try {
+    // Call AshtechPay API
+    const ashtechResponse = await fetch(`${ASHTECH_BASE_URL}/v1/collect`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${ASHTECH_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: forfait.prix,
+        currency: "XAF",
+        phone: paymentPhone,
+        operator: paymentOperator,
+        country_code: "GA",
+        reference,
+      }),
+    });
+
+    const ashtechData = await ashtechResponse.json() as Record<string, unknown>;
+
+    if (ashtechResponse.status === 202) {
+      // Success — USSD push sent
+      await db
+        .update(commandesTable)
+        .set({ transactionId: ashtechData.transaction_id as string, statut: "pending" })
+        .where(eq(commandesTable.id, commande.id));
+
+      res.status(202).json({
+        transactionId: ashtechData.transaction_id,
+        reference: ashtechData.reference,
+        statut: "pending",
+        montant: forfait.prix,
+        montantNet: ashtechData.credited_amount,
+        operateur: paymentOperator,
+        telephone: paymentPhone,
+      });
+    } else if (ashtechResponse.status === 400 && ashtechData.error === "otp_required") {
+      // OTP required
+      await db
+        .update(commandesTable)
+        .set({ reference: ashtechData.reference as string, statut: "otp_required" })
+        .where(eq(commandesTable.id, commande.id));
+
+      res.status(400).json({
+        erreur: "otp_required",
+        message: ashtechData.message,
+        reference: ashtechData.reference,
+        ussdCode: ashtechData.ussd_code || null,
+      });
+    } else {
+      // Other error
+      await db
+        .update(commandesTable)
+        .set({ statut: "failed" })
+        .where(eq(commandesTable.id, commande.id));
+
+      res.status(400).json({
+        erreur: (ashtechData.error as string) || "erreur",
+        message: (ashtechData.message as string) || "Une erreur est survenue",
+        reference: null,
+        ussdCode: null,
+      });
+    }
+  } catch (err) {
+    req.log.error({ err }, "AshtechPay error");
+    await db
+      .update(commandesTable)
+      .set({ statut: "failed" })
+      .where(eq(commandesTable.id, commande.id));
+
+    res.status(500).json({
+      erreur: "server_error",
+      message: "Erreur de connexion au service de paiement",
+      reference: null,
+      ussdCode: null,
+    });
+  }
+});
+
+// Confirmer avec OTP
+router.post("/paiement/otp", async (req, res) => {
+  const parsed = ConfirmerOtpBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ erreur: "bad_request", message: "Données invalides", reference: null, ussdCode: null });
+    return;
+  }
+
+  const { reference, otp, paymentOperator, paymentPhone, montant } = parsed.data;
+
+  try {
+    const ashtechResponse = await fetch(`${ASHTECH_BASE_URL}/v1/collect`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${ASHTECH_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: montant,
+        currency: "XAF",
+        phone: paymentPhone,
+        operator: paymentOperator,
+        country_code: "GA",
+        reference,
+        otp,
+      }),
+    });
+
+    const ashtechData = await ashtechResponse.json() as Record<string, unknown>;
+
+    if (ashtechResponse.status === 202) {
+      // Update commande status
+      await db
+        .update(commandesTable)
+        .set({ transactionId: ashtechData.transaction_id as string, statut: "pending" })
+        .where(eq(commandesTable.reference, reference));
+
+      res.status(202).json({
+        transactionId: ashtechData.transaction_id,
+        reference: ashtechData.reference,
+        statut: "pending",
+        montant: ashtechData.amount,
+        montantNet: ashtechData.credited_amount,
+        operateur: paymentOperator,
+        telephone: paymentPhone,
+      });
+    } else {
+      res.status(400).json({
+        erreur: (ashtechData.error as string) || "erreur",
+        message: (ashtechData.message as string) || "Code OTP invalide",
+        reference: null,
+        ussdCode: null,
+      });
+    }
+  } catch (err) {
+    req.log.error({ err }, "AshtechPay OTP error");
+    res.status(500).json({
+      erreur: "server_error",
+      message: "Erreur de connexion au service de paiement",
+      reference: null,
+      ussdCode: null,
+    });
+  }
+});
+
+// Statut d'une transaction
+router.get("/paiement/statut/:transactionId", async (req, res) => {
+  const { transactionId } = req.params;
+
+  try {
+    const ashtechResponse = await fetch(`${ASHTECH_BASE_URL}/v1/transaction/${transactionId}`, {
+      headers: {
+        Authorization: `Bearer ${ASHTECH_API_KEY}`,
+      },
+    });
+
+    if (ashtechResponse.status === 404) {
+      res.status(404).json({ error: "Transaction introuvable" });
+      return;
+    }
+
+    const ashtechData = await ashtechResponse.json() as Record<string, unknown>;
+
+    // Update local commande status
+    if (ashtechData.status === "success" || ashtechData.status === "failed") {
+      await db
+        .update(commandesTable)
+        .set({ statut: ashtechData.status as string })
+        .where(eq(commandesTable.transactionId, transactionId));
+    }
+
+    res.json({
+      transactionId: ashtechData.transaction_id,
+      reference: ashtechData.reference || null,
+      statut: ashtechData.status,
+      montant: ashtechData.amount || null,
+      montantNet: ashtechData.credited_amount || null,
+      telephone: ashtechData.phone || null,
+      confirmedAt: ashtechData.confirmed_at || null,
+    });
+  } catch (err) {
+    req.log.error({ err }, "AshtechPay statut error");
+    res.status(500).json({ error: "Erreur de connexion" });
+  }
+});
+
+// Liste des commandes récentes
+router.get("/commandes", async (req, res) => {
+  const commandes = await db
+    .select()
+    .from(commandesTable)
+    .orderBy(commandesTable.createdAt)
+    .limit(50);
+
+  res.json(
+    commandes.map((c) => ({
+      id: c.id,
+      forfaitId: c.forfaitId,
+      operateurForfait: c.operateurForfait,
+      beneficiairePhone: c.beneficiairePhone,
+      paymentOperator: c.paymentOperator,
+      paymentPhone: c.paymentPhone,
+      transactionId: c.transactionId,
+      reference: c.reference,
+      statut: c.statut,
+      montant: c.montant,
+      createdAt: c.createdAt.toISOString(),
+    }))
+  );
+});
+
+export default router;

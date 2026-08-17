@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API specification for Forfaits Internet Gabon
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: forfaits
+    description: Forfaits internet disponibles
+  - name: paiement
+    description: Paiements Mobile Money via AshtechPay
 paths:
   /healthz:
     get:
@@ -24,6 +28,117 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /forfaits:
+    get:
+      operationId: listForfaits
+      tags: [forfaits]
+      summary: Liste des forfaits internet disponibles
+      description: Retourne tous les forfaits Airtel et Moov disponibles au Gabon
+      responses:
+        "200":
+          description: Liste des forfaits
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Forfait"
+
+  /paiement/initier:
+    post:
+      operationId: initierPaiement
+      tags: [paiement]
+      summary: Initier un paiement Mobile Money
+      description: Initie un paiement via Airtel Money ou Moov Money au Gabon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaiementInput"
+      responses:
+        "202":
+          description: Paiement initié avec succès (USSD push envoyé)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaiementReponse"
+        "400":
+          description: OTP requis ou erreur de validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaiementErreur"
+
+  /paiement/otp:
+    post:
+      operationId: confirmerOtp
+      tags: [paiement]
+      summary: Confirmer un paiement avec OTP
+      description: Soumet le code OTP pour finaliser le paiement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OtpInput"
+      responses:
+        "202":
+          description: OTP confirmé, paiement initié
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaiementReponse"
+        "400":
+          description: Erreur OTP
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaiementErreur"
+
+  /paiement/statut/{transactionId}:
+    get:
+      operationId: statutPaiement
+      tags: [paiement]
+      summary: Statut d'une transaction
+      description: Consulte le statut d'une transaction de paiement
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Statut de la transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatutTransaction"
+        "404":
+          description: Transaction introuvable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+
+  /commandes:
+    get:
+      operationId: listCommandes
+      tags: [paiement]
+      summary: Liste des commandes récentes
+      description: Retourne les dernières commandes pour le tableau de bord
+      responses:
+        "200":
+          description: Liste des commandes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Commande"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +149,140 @@ components:
       required:
         - status
 
+    Forfait:
+      type: object
+      required: [id, operateur, volume, prix, validite, validiteJours]
+      properties:
+        id:
+          type: string
+        operateur:
+          type: string
+          enum: [moov, airtel]
+        volume:
+          type: string
+        prix:
+          type: number
+        validite:
+          type: string
+        validiteJours:
+          type: number
+        description:
+          type: string
+
+    PaiementInput:
+      type: object
+      required: [forfaitId, beneficiairePhone, paymentOperator, paymentPhone]
+      properties:
+        forfaitId:
+          type: string
+        beneficiairePhone:
+          type: string
+        paymentOperator:
+          type: string
+          enum: ["Airtel Money", "Moov Money"]
+        paymentPhone:
+          type: string
+
+    OtpInput:
+      type: object
+      required: [reference, otp, forfaitId, beneficiairePhone, paymentOperator, paymentPhone, montant]
+      properties:
+        reference:
+          type: string
+        otp:
+          type: string
+        forfaitId:
+          type: string
+        beneficiairePhone:
+          type: string
+        paymentOperator:
+          type: string
+        paymentPhone:
+          type: string
+        montant:
+          type: number
+
+    PaiementReponse:
+      type: object
+      required: [transactionId, statut]
+      properties:
+        transactionId:
+          type: string
+        reference:
+          type: ["string", "null"]
+        statut:
+          type: string
+        montant:
+          type: ["integer", "null"]
+        montantNet:
+          type: ["integer", "null"]
+        operateur:
+          type: ["string", "null"]
+        telephone:
+          type: ["string", "null"]
+
+    PaiementErreur:
+      type: object
+      required: [erreur, message]
+      properties:
+        erreur:
+          type: string
+        message:
+          type: string
+        reference:
+          type: ["string", "null"]
+        ussdCode:
+          type: ["string", "null"]
+
+    StatutTransaction:
+      type: object
+      required: [transactionId, statut]
+      properties:
+        transactionId:
+          type: string
+        reference:
+          type: ["string", "null"]
+        statut:
+          type: string
+        montant:
+          type: ["integer", "null"]
+        montantNet:
+          type: ["integer", "null"]
+        telephone:
+          type: ["string", "null"]
+        confirmedAt:
+          type: ["string", "null"]
+
+    Commande:
+      type: object
+      required: [id, forfaitId, operateurForfait, beneficiairePhone, paymentOperator, paymentPhone, statut, montant, createdAt]
+      properties:
+        id:
+          type: number
+        forfaitId:
+          type: string
+        operateurForfait:
+          type: string
+        beneficiairePhone:
+          type: string
+        paymentOperator:
+          type: string
+        paymentPhone:
+          type: string
+        transactionId:
+          type: ["string", "null"]
+        reference:
+          type: ["string", "null"]
+        statut:
+          type: string
+        montant:
+          type: number
+        createdAt:
+          type: string
+
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string

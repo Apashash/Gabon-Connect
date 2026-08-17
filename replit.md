@@ -1,45 +1,61 @@
-# [Project name]
+# NetForfait Gabon
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Site de vente de forfaits internet au Gabon pour les opérateurs Airtel et Moov, avec paiement via Mobile Money (Airtel Money / Moov Money) intégré via l'API AshtechPay.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/api-server run dev` — serveur API (port 8080, `/api`)
+- `pnpm --filter @workspace/forfaits-gabon run dev` — frontend React (port dynamique, `/`)
+- `pnpm run typecheck` — vérification TypeScript complète
+- `pnpm --filter @workspace/api-spec run codegen` — régénérer les hooks API depuis la spec OpenAPI (puis patcher `zod.int()` → `zod.number()`)
+- `pnpm --filter @workspace/db run push` — appliquer les migrations DB (dev only)
+- Required env: `DATABASE_URL`, `ASHTECH_API_KEY`
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
+- Frontend: React + Vite + Tailwind CSS + shadcn/ui
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Validation: Zod (v4), drizzle-zod
+- API codegen: Orval (depuis OpenAPI spec)
+- Paiement: AshtechPay Direct API v1
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/forfaits-gabon/` — frontend React (page principale, modal d'achat)
+- `artifacts/api-server/src/routes/forfaits.ts` — liste statique des forfaits
+- `artifacts/api-server/src/routes/paiement.ts` — routes paiement → AshtechPay
+- `lib/api-spec/openapi.yaml` — contrat API source de vérité
+- `lib/db/src/schema/commandes.ts` — table des commandes
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Forfaits définis statiquement côté serveur (pas en DB) — simples à modifier
+- AshtechPay appelé côté serveur uniquement (clé API jamais exposée au frontend)
+- Flux USSD Push (Airtel/Moov Gabon) — client reçoit notification sur son téléphone
+- OTP flow géré si AshtechPay retourne `otp_required`
+- Commandes sauvegardées en DB pour traçabilité
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Page unique avec hero + sections Airtel et Moov
+- 4 forfaits : Moov 6Go/1200F, 13Go/2600F — Airtel 5Go/1100F, 15Go/3100F
+- Modal d'achat en 5 étapes : sélection → numéro bénéficiaire → mode paiement → numéro paiement → confirmation
+- Polling automatique du statut de transaction
+- Gestion des erreurs OTP
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+_À compléter selon les retours utilisateur._
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Orval v8 génère `zod.int()` pour les champs `number` nullables — incompatible avec zod v3. Après codegen, patcher avec : `sed -i 's/zod\.int()/zod.number()/g' lib/api-zod/src/generated/api.ts` puis relancer `typecheck:libs`
+- L'API AshtechPay pour le Gabon utilise `country_code: "GA"` et `currency: "XAF"`
+- Opérateurs Gabon : `"Airtel Money"` et `"Moov Money"` (noms exacts depuis la doc AshtechPay)
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- AshtechPay docs : `attached_assets/AshtechPay_API_Direct_v1_1786998220988.pdf`
