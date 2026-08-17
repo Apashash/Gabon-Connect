@@ -28,7 +28,10 @@ router.post("/paiement/initier", async (req, res) => {
     return;
   }
 
-  const reference = `FG-${randomUUID().slice(0, 8).toUpperCase()}`;
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const randomChars = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const randomNums = String(Math.floor(Math.random() * 90000) + 10000);
+  const reference = `ASHPAY-PAY-${randomChars}-${randomNums}`;
 
   // Create commande in DB
   const [commande] = await db
