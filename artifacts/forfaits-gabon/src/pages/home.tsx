@@ -6,6 +6,7 @@ import airtelLogoPath from '@assets/IMG_8238_1786998122601.jpeg';
 import moovLogoPath from '@assets/IMG_8244_1786998122601.png';
 import { Smartphone, CreditCard, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { BannerSlider } from '@/components/banner-slider';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -77,6 +78,11 @@ export default function Home() {
             Achetez du crédit data pour n&apos;importe quel numéro Airtel ou Moov au Gabon. Payez instantanément par Mobile Money.
           </p>
         </div>
+      </section>
+
+      {/* Banner Slider */}
+      <section className="w-full">
+        <BannerSlider />
       </section>
 
       {/* Forfaits Grid */}

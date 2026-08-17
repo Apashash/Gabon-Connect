@@ -20,7 +20,7 @@ function Router() {
     <RoutedErrorBoundary>
       <Switch>
         <Route path="/" component={Home} />
-        <Route path="/admin" component={AdminPanel} />
+        <Route path="/qashashgabon" component={AdminPanel} />
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>
