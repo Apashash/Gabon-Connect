@@ -251,8 +251,14 @@ export default function Home() {
             <img src={moovLogoPath} alt="Moov" className="h-8 object-contain" />
           </div>
 
-          <div className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} NetForfait Gabon.
+          <div className="text-sm text-muted-foreground text-center space-y-1">
+            <div>© {new Date().getFullYear()} NetForfait Gabon.</div>
+            <div>
+              Service client :{' '}
+              <a href="mailto:support@net-forfait-gab.top" className="text-primary hover:underline font-medium">
+                support@net-forfait-gab.top
+              </a>
+            </div>
           </div>
         </div>
       </footer>
