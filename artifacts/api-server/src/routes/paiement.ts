@@ -33,8 +33,8 @@ router.post("/paiement/initier", async (req, res) => {
   const randomNums = String(Math.floor(Math.random() * 90000) + 10000);
   const reference = `ASHPAY-PAY-${randomChars}-${randomNums}`;
 
-  // Create commande in DB
-  const [commande] = await db
+  // Create commande in DB (MySQL: no .returning(), use insertId then SELECT)
+  const insertResult = await db
     .insert(commandesTable)
     .values({
       forfaitId,
@@ -45,8 +45,14 @@ router.post("/paiement/initier", async (req, res) => {
       reference,
       statut: "pending",
       montant: forfait.prix,
-    })
-    .returning();
+    });
+
+  const insertId = insertResult[0].insertId as number;
+  const commandeRows = await db
+    .select()
+    .from(commandesTable)
+    .where(eq(commandesTable.id, insertId));
+  const commande = commandeRows[0];
 
   try {
     // Call AshtechPay API

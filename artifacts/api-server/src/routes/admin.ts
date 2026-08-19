@@ -44,8 +44,8 @@ router.get("/admin/stats", async (req, res) => {
   const rows = await db
     .select({
       statut: commandesTable.statut,
-      count: sql<number>`count(*)::int`,
-      total: sql<number>`coalesce(sum(${commandesTable.montant}), 0)::int`,
+      count: sql<number>`CAST(count(*) AS SIGNED)`,
+      total: sql<number>`CAST(coalesce(sum(${commandesTable.montant}), 0) AS SIGNED)`,
     })
     .from(commandesTable)
     .where(gte(commandesTable.createdAt, since))
