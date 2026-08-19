@@ -82,8 +82,17 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Bouton flottant — scroll vers les forfaits */}
+      <button
+        onClick={() => document.getElementById('forfaits')?.scrollIntoView({ behavior: 'smooth' })}
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-white font-bold shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 text-sm"
+        aria-label="Voir les forfaits"
+      >
+        📶 Voir les forfaits
+      </button>
+
       {/* Forfaits Grid */}
-      <section className="py-12 bg-white px-4 border-y">
+      <section id="forfaits" className="py-12 bg-white px-4 border-y">
         <div className="container mx-auto max-w-5xl">
           <div className="grid md:grid-cols-2 gap-8 md:gap-12">
 
