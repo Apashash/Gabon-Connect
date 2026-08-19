@@ -1,11 +1,111 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useListForfaits, Forfait } from '@workspace/api-client-react';
 import airtelLogoPath from '@assets/IMG_8238_1786998122601.jpeg';
 import moovLogoPath from '@assets/IMG_8244_1786998122601.png';
-import { Smartphone, CreditCard, Zap } from 'lucide-react';
+import { Smartphone, CreditCard, Zap, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { BannerSlider } from '@/components/banner-slider';
+
+/* ── Bouton flottant glissable ───────────────────────────────────────── */
+function FloatingForfaitsButton({ onScrollTo }: { onScrollTo: () => void }) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
+  const [overTrash, setOverTrash] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem('nfg-float-hidden') === '1') return;
+    setVisible(true);
+    // Positionner après le montage pour avoir les dimensions réelles
+    requestAnimationFrame(() => {
+      const btn = btnRef.current;
+      if (!btn) return;
+      const saved = localStorage.getItem('nfg-float-pos');
+      let x: number, y: number;
+      if (saved) {
+        try { ({ x, y } = JSON.parse(saved)); } catch { x = NaN; y = NaN; }
+      }
+      if (!saved || isNaN(x!) || isNaN(y!)) {
+        x = window.innerWidth - btn.offsetWidth - 16;
+        y = window.innerHeight / 2 - btn.offsetHeight / 2;
+      }
+      btn.style.left = x + 'px';
+      btn.style.top  = y + 'px';
+    });
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    e.preventDefault();
+    btn.setPointerCapture(e.pointerId);
+
+    const rect   = btn.getBoundingClientRect();
+    const offX   = e.clientX - rect.left;
+    const offY   = e.clientY - rect.top;
+    let hasMoved = false;
+    let curX = rect.left, curY = rect.top;
+
+    setShowTrash(true);
+
+    const TRASH_ZONE = 110; // px depuis le bas
+
+    const onMove = (ev: PointerEvent) => {
+      const nx = Math.max(0, Math.min(window.innerWidth  - btn.offsetWidth,  ev.clientX - offX));
+      const ny = Math.max(0, Math.min(window.innerHeight - btn.offsetHeight, ev.clientY - offY));
+      if (Math.abs(nx - curX) > 4 || Math.abs(ny - curY) > 4) hasMoved = true;
+      curX = nx; curY = ny;
+      btn.style.left = nx + 'px';
+      btn.style.top  = ny + 'px';
+      setOverTrash(ev.clientY > window.innerHeight - TRASH_ZONE);
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      btn.removeEventListener('pointermove', onMove);
+      btn.removeEventListener('pointerup',   onUp);
+      setShowTrash(false);
+      setOverTrash(false);
+      if (!hasMoved) { onScrollTo(); return; }
+      if (ev.clientY > window.innerHeight - TRASH_ZONE) {
+        setVisible(false);
+        localStorage.setItem('nfg-float-hidden', '1');
+      } else {
+        localStorage.setItem('nfg-float-pos', JSON.stringify({ x: curX, y: curY }));
+      }
+    };
+
+    btn.addEventListener('pointermove', onMove);
+    btn.addEventListener('pointerup',   onUp);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onPointerDown={handlePointerDown}
+        style={{ position: 'fixed', left: 0, top: 0, touchAction: 'none', zIndex: 50 }}
+        className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#E4002B] text-white font-semibold shadow-lg text-sm select-none cursor-grab active:cursor-grabbing border-2 border-white/30"
+        aria-label="Voir les forfaits"
+      >
+        📶 Forfaits
+      </button>
+
+      {showTrash && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-1 pointer-events-none">
+          <div className={`p-4 rounded-full border-2 border-dashed transition-all duration-150 ${overTrash ? 'bg-red-500 border-red-600 scale-125' : 'bg-red-50 border-red-400'}`}>
+            <Trash2 className={`h-7 w-7 ${overTrash ? 'text-white' : 'text-red-500'}`} />
+          </div>
+          <span className="text-xs font-semibold text-red-600 bg-white px-2 py-0.5 rounded-full shadow">
+            {overTrash ? 'Relâcher pour supprimer' : 'Glisser ici pour supprimer'}
+          </span>
+        </div>
+      )}
+    </>
+  );
+}
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -82,14 +182,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Bouton flottant — scroll vers les forfaits */}
-      <button
-        onClick={() => document.getElementById('forfaits')?.scrollIntoView({ behavior: 'smooth' })}
-        className="fixed bottom-6 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-[#E4002B] text-white font-semibold shadow-lg hover:bg-[#E4002B]/90 hover:shadow-xl active:scale-95 transition-all duration-200 text-sm border-2 border-white/30"
-        aria-label="Voir les forfaits"
-      >
-        📶 Forfaits
-      </button>
+      {/* Bouton flottant glissable */}
+      <FloatingForfaitsButton
+        onScrollTo={() => document.getElementById('forfaits')?.scrollIntoView({ behavior: 'smooth' })}
+      />
 
       {/* Forfaits Grid */}
       <section id="forfaits" className="py-12 bg-white px-4 border-y">
