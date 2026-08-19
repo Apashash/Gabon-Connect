@@ -4,6 +4,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import Home from '@/pages/home';
+import AchatPage from '@/pages/achat';
 import AdminPanel from '@/pages/admin';
 import NotFound from '@/pages/not-found';
 import {
@@ -20,6 +21,7 @@ function Router() {
     <RoutedErrorBoundary>
       <Switch>
         <Route path="/" component={Home} />
+        <Route path="/achat/:forfaitId" component={AchatPage} />
         <Route path="/qashashgabon" component={AdminPanel} />
         <Route component={NotFound} />
       </Switch>

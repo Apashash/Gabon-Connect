@@ -1,7 +1,6 @@
-import { useState, useCallback, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useListForfaits, Forfait } from '@workspace/api-client-react';
-import { PurchaseModal } from '@/components/purchase-modal';
 import airtelLogoPath from '@assets/IMG_8238_1786998122601.jpeg';
 import moovLogoPath from '@assets/IMG_8244_1786998122601.png';
 import { Smartphone, CreditCard, Zap } from 'lucide-react';
@@ -13,9 +12,6 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 export default function Home() {
   const { data: forfaits = [], isLoading } = useListForfaits();
   const [, navigate] = useLocation();
-
-  const [selectedForfait, setSelectedForfait] = useState<Forfait | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Secret admin access: 7 taps on the "2. Payez" block
   const secretCount = useRef(0);
@@ -47,8 +43,7 @@ export default function Home() {
   ];
 
   const handleBuy = (forfait: Forfait) => {
-    setSelectedForfait(forfait);
-    setIsModalOpen(true);
+    navigate(`/achat/${forfait.id}`);
   };
 
   const formatPrice = (price: number) =>
@@ -253,11 +248,6 @@ export default function Home() {
         </div>
       </footer>
 
-      <PurchaseModal
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        forfait={selectedForfait}
-      />
     </div>
   );
 }
