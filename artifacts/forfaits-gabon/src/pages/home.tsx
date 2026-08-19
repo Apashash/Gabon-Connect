@@ -23,7 +23,7 @@ export default function Home() {
     setSecretClicks((prev) => {
       const next = prev + 1;
       if (next >= 7) {
-        navigate('/admin');
+        navigate('/qashashgabon');
         return 0;
       }
       return next;
