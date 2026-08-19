@@ -1,12 +1,16 @@
 # See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
 # compiled output
-dist
 tmp
 out-tsc
 *.tsbuildinfo
 .expo
 .expo-shared
+
+# Ignorer dist partout SAUF les dossiers de déploiement Plesk
+dist
+!artifacts/api-server/dist
+!artifacts/forfaits-gabon/dist
 
 # dependencies
 node_modules
