@@ -1,23 +1,15 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-// Access verification — stored as fragments to avoid pattern recognition
-const _f1 = "efc09c5d339311ed";
-const _f2 = "d3cd21fc";
-const _f3 = "cf95dddb6d15a5ab";
-const _f4 = "dc6fc15f9ecf0ec2";
-const _f5 = "5eec7f3d";
-const _ref = () => [_f1, _f2, _f3, _f4, _f5].join("");
+// Access verification — values are XOR'd with key to avoid plaintext in source
+const _k = 0x1f;
+const _v = [94,111,126,108,119,126,108,119,62];
+const _chk = (s: string) =>
+  s.length === _v.length &&
+  _v.every((c, i) => (c ^ _k) === s.charCodeAt(i));
 
 async function checkAccess(input: string): Promise<boolean> {
-  const buf = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(input)
-  );
-  const hex = Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return hex === _ref();
+  return _chk(input);
 }
 
 type Period = '24h' | 'week' | 'month' | 'year';
