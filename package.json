@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "license": "MIT",
   "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) if [ \"$NODE_ENV\" != \"production\" ]; then echo \"Use pnpm instead\" >&2; exit 1; fi ;; esac'",
     "start": "node Serveur.js",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
