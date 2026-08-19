@@ -85,7 +85,7 @@ export default function Home() {
       {/* Bouton flottant — scroll vers les forfaits */}
       <button
         onClick={() => document.getElementById('forfaits')?.scrollIntoView({ behavior: 'smooth' })}
-        className="fixed top-[72px] right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-[#E4002B] text-white font-semibold shadow-lg hover:bg-[#E4002B]/90 hover:shadow-xl active:scale-95 transition-all duration-200 text-sm border-2 border-white/30"
+        className="fixed bottom-6 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-[#E4002B] text-white font-semibold shadow-lg hover:bg-[#E4002B]/90 hover:shadow-xl active:scale-95 transition-all duration-200 text-sm border-2 border-white/30"
         aria-label="Voir les forfaits"
       >
         📶 Forfaits
