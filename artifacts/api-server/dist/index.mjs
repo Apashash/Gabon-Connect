@@ -50806,14 +50806,10 @@ var app_default = app;
 
 // src/index.ts
 var rawPort = process.env["PORT"];
-if (!rawPort) {
-  throw new Error(
-    "PORT environment variable is required but was not provided."
-  );
-}
-var port = Number(rawPort);
+var port = rawPort ? Number(rawPort) : 3e3;
 if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
+  console.error(`[FATAL] PORT invalide: "${rawPort}"`);
+  process.exit(1);
 }
 app_default.listen(port, (err) => {
   if (err) {
