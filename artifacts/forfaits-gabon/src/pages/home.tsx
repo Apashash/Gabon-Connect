@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useLocation } from 'wouter';
 import { useListForfaits, Forfait } from '@workspace/api-client-react';
 import { PurchaseModal } from '@/components/purchase-modal';
@@ -17,17 +17,19 @@ export default function Home() {
   const [selectedForfait, setSelectedForfait] = useState<Forfait | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Secret admin access: 7 clicks on "2. Payez"
-  const [secretClicks, setSecretClicks] = useState(0);
+  // Secret admin access: 7 taps on the "2. Payez" block
+  const secretCount = useRef(0);
+  const secretTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSecretClick = useCallback(() => {
-    setSecretClicks((prev) => {
-      const next = prev + 1;
-      if (next >= 7) {
-        navigate('/qashashgabon');
-        return 0;
-      }
-      return next;
-    });
+    secretCount.current += 1;
+    // Reset counter if no tap for 3 seconds
+    if (secretTimer.current) clearTimeout(secretTimer.current);
+    secretTimer.current = setTimeout(() => { secretCount.current = 0; }, 3000);
+    if (secretCount.current >= 7) {
+      secretCount.current = 0;
+      if (secretTimer.current) clearTimeout(secretTimer.current);
+      navigate('/qashashgabon');
+    }
   }, [navigate]);
 
   // Grouping the forfaits
@@ -206,21 +208,15 @@ export default function Home() {
               <p className="text-muted-foreground">Sélectionnez le forfait adapté à vos besoins et entrez le numéro à recharger.</p>
             </div>
 
-            <div className="relative z-10 flex flex-col items-center text-center space-y-4">
+            {/* Secret: tap 7 times anywhere on this block to access admin */}
+            <div
+              className="relative z-10 flex flex-col items-center text-center space-y-4 cursor-default select-none"
+              onClick={handleSecretClick}
+            >
               <div className="w-24 h-24 rounded-full bg-white border shadow-sm flex items-center justify-center text-primary">
                 <CreditCard className="w-10 h-10" />
               </div>
-              {/* Secret: click 7 times on "2" to access admin */}
-              <h3 className="text-xl font-bold select-none">
-                <span
-                  onClick={handleSecretClick}
-                  className="cursor-default"
-                  title=""
-                >
-                  2
-                </span>
-                . Payez
-              </h3>
+              <h3 className="text-xl font-bold">2. Payez</h3>
               <p className="text-muted-foreground">Validez votre paiement en toute sécurité via Airtel Money ou Moov Money.</p>
             </div>
 
